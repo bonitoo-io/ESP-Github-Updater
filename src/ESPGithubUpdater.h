@@ -31,7 +31,7 @@ public:
 };
 
 typedef std::function<void(HTTPClient &res)> GithubResponseHandler;
-typedef std::function<void(float percent)> UpdateProgressHandler;
+typedef std::function<void(int percent)> UpdateProgressHandler;
 
 class ESPGithubUpdater {
 public:

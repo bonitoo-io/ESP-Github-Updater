@@ -42,7 +42,7 @@ void ReleaseParser::startObject() {
 }
 
 void ReleaseParser::key(String key) {
-    if(!_inAssests && key == "assets") {
+    if(!_inAssests && key == F("assets")) {
         _inAssests = true;
     }
     _key = key;
@@ -57,9 +57,9 @@ void ReleaseParser:: endArray() {
 void ReleaseParser::value(String value) {
     //Serial.println("key: " + _key + " value: " + value);
     if(!_inAssests) {
-        if ( _key == "name") {
+        if ( _key == F("name")) {
             _release->version = value;
-        } else if ( _key == "tag_name") {
+        } else if ( _key == F("tag_name")) {
             _release->version = value;
         }
     } else {
@@ -100,7 +100,12 @@ bool ESPGithubUpdater::fetchVersion(String version, bool includePrelease) {
         ReleaseParser rel;
         HTTPJsonParser parser(&rel);
         client.writeToStream(&parser);
-        _cache = *rel.getRelease();
+        if(rel.getRelease()) {
+            _cache = *rel.getRelease();
+        } else {
+            _cache.version = "";
+            _lastError = F("no version found");
+        }
     });
 }
 
@@ -127,22 +132,21 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     if(!fetchVersion(version)) {
         return false;
     }
-    Serial.printf("Update %s, bin: %s\n", _cache.assetUrl.c_str(),_cache.assetIsBin?"true":"false");
+    Serial.printf_P(PSTR("Update %s, bin: %s\n"), _cache.assetUrl.c_str(),_cache.assetIsBin?F("true"):F("false"));
     if(!_cache.assetIsBin) {
         _lastError = F("Not a binary asset: ");
         _lastError += _cache.assetUrl.c_str();
         return false;
     }
-   
-   
+      
     if(_user.length() && _token.length()) {
         ESPhttpUpdate.setAuthorization(_user.c_str(),_token.c_str());
     }
     if(handler) {
         ESPhttpUpdate.onProgress([handler](size_t act, size_t total) {
             float prog = act;
-            prog = prog/total*100.0;
-            handler(prog);
+            prog = (prog/total)*100;
+            handler((int)prog);
         });
     }
     #if 0
@@ -153,14 +157,20 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             return false;
 
         case HTTP_UPDATE_NO_UPDATES:
-            _lastError = "HTTP_UPDATE_NO_UPDATES";
+            _lastError = F("HTTP_UPDATE_NO_UPDATES");
             return false;
 
         case HTTP_UPDATE_OK:
-            _lastError = "HTTP_UPDATE_OK";
+            _lastError = F("HTTP_UPDATE_OK");
             return true;
     }
     #else
+    for(int i=0;i<=100;i+=10) {
+        if(handler) {
+           handler((float)i);
+           delay(200);
+        };
+    }
     return true;
     #endif
 }
@@ -171,19 +181,19 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
         bool mfln = _client->probeMaxFragmentLength(GithubAPI, 443, 1024);
         if (mfln) {
             _client->setBufferSizes(1024, 1024);
-            Serial.println("MFLN ok");
+            Serial.println(F("MFLN ok"));
         }
         _client->setInsecure();
     }
     HTTPClient httpClient;
     _lastError = "";
-    String url = "https://";
+    String url = F("https://");
     url += GithubAPI;
     url += path;
-    Serial.printf("githubAPICall %s\n", url.c_str());
+    Serial.printf_P(PSTR("githubAPICall %s\n"), url.c_str());
     if(!httpClient.begin(*_client, url)) {
         _lastError = F("Begin failed");
-        Serial.println("begin failed");
+        Serial.println(F("begin failed"));
         return false;
     }
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
@@ -194,7 +204,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
     }
     
     int code = httpClient.GET();
-    Serial.printf("githubAPICall: code %d\n", code);
+    Serial.printf_P(PSTR("githubAPICall: code %d\n"), code);
     bool res = code == 200;
     if(res) {
         if(handler) {
@@ -206,7 +216,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
         } else {
             _lastError = httpClient.getString();
         }
-        Serial.printf("githubAPICall error %s\n", _lastError.c_str());
+        Serial.printf_P(PSTR("githubAPICall error %s\n"), _lastError.c_str());
     } 
     httpClient.end();
     return res;

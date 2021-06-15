@@ -1,10 +1,10 @@
 #include <ESP8266WiFi.h>
 #include "ESPGithubUpdater.h"
 
-ESPGithubUpdater updater("vlastahajek","RLTest");
+ESPGithubUpdater updater("<owner>","<repo>");
 // Github has anonymous rate limit 60/hours
 // In order to access private repos or use higher limit, 1500/hour, user authenticated request 
-//ESPGithubUpdater updater("vlastahajek","RLTest"),"<username>","<token>");
+//ESPGithubUpdater updater("<owner>","<repo>","<username>","<token>");
 
 void setup() {
   Serial.begin(74880);
@@ -30,8 +30,14 @@ void setup() {
   Serial.println(updater.getLatestVersion());
   Serial.print("Latest beta: ");
   String ver = updater.getLatestVersion(true);
-  Serial.println(ver);
-  updater.runUpdate(ver);
+  if(!ver.length()) {
+    Serial.println(updater.getLastError());  
+  } else {
+    Serial.println(ver);
+    updater.runUpdate(ver, [ver](int progress) {
+      Serial.printf("Updating to %s: %d%\n",ver.c_str(), progress);
+    });
+  }
 }
 
 void loop() {
