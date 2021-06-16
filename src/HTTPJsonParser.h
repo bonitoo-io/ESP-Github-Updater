@@ -15,10 +15,10 @@ public:
     // Stream overrides
     virtual int available() override
     {
-        return 0;
+        return 256;
     }
 
-    virtual int availableForWrite() override
+    virtual int availableForWrite() //override
     {
         return 256;
     }
@@ -44,12 +44,12 @@ public:
         return len;
     } 
 
-    virtual bool outputCanTimeout() override
+    virtual bool outputCanTimeout() //override
     {
         return false;
     } 
 
-    virtual bool hasPeekBufferAPI() const override
+    virtual bool hasPeekBufferAPI() const// override
     {
         return false;
     } 
