@@ -125,7 +125,7 @@ String ESPGithubUpdater::buildGithubPath(String version, bool includePrelease) {
         }
     }
     path = buff;
-    delete buff;
+    delete [] buff;
     return path;
 }
 
