@@ -125,6 +125,7 @@ String ESPGithubUpdater::buildGithubPath(String version, bool includePrelease) {
         }
     }
     path = buff;
+    delete buff;
     return path;
 }
 
@@ -132,7 +133,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     if(!fetchVersion(version)) {
         return false;
     }
-    Serial.printf_P(PSTR("Update %s, bin: %s\n"), _cache.assetUrl.c_str(),_cache.assetIsBin?F("true"):F("false"));
+    //Serial.printf_P(PSTR("Update %s, bin: %s\n"), _cache.assetUrl.c_str(),_cache.assetIsBin?F("true"):F("false"));
     if(!_cache.assetIsBin) {
         _lastError = F("Not a binary asset: ");
         _lastError += _cache.assetUrl.c_str();
@@ -176,7 +177,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
         bool mfln = _client->probeMaxFragmentLength(GithubAPI, 443, 1024);
         if (mfln) {
             _client->setBufferSizes(1024, 1024);
-            Serial.println(F("MFLN ok"));
+            //Serial.println(F("MFLN ok"));
         }
         _client->setInsecure();
     }
@@ -185,7 +186,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
     String url = F("https://");
     url += GithubAPI;
     url += path;
-    Serial.printf_P(PSTR("githubAPICall %s\n"), url.c_str());
+    //Serial.printf_P(PSTR("githubAPICall %s\n"), url.c_str());
     if(!httpClient.begin(*_client, url)) {
         _lastError = F("Begin failed");
         Serial.println(F("begin failed"));
@@ -199,7 +200,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
     }
     
     int code = httpClient.GET();
-    Serial.printf_P(PSTR("githubAPICall: code %d\n"), code);
+    //Serial.printf_P(PSTR("githubAPICall: code %d\n"), code);
     bool res = code == 200;
     if(res) {
         if(handler) {
@@ -211,7 +212,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
         } else {
             _lastError = httpClient.getString();
         }
-        Serial.printf_P(PSTR("githubAPICall error %s\n"), _lastError.c_str());
+        //Serial.printf_P(PSTR("githubAPICall error %s\n"), _lastError.c_str());
     } 
     httpClient.end();
     return res;
