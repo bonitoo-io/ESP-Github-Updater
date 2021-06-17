@@ -182,7 +182,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
         });
     }
     
-    ESPhttpUpdate.followRedirects(true);
+    ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     ESPhttpUpdate.closeConnectionsOnUpdate(false);
     ESPhttpUpdate.rebootOnUpdate(_restartOnUpdate);
     t_httpUpdate_return ret = ESPhttpUpdate.update(*_client, _cache.assetUrl);
