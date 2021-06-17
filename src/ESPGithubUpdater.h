@@ -42,6 +42,7 @@ public:
     bool checkVersion(String version);
     bool runUpdate(String version, UpdateProgressHandler handler = nullptr);
     String getLastError() const { return _lastError; }
+    void setRestartOnUpdate(bool restart) { _restartOnUpdate = restart; }
 private:
     bool fetchVersion(String version, bool includePrelease = false);
     String buildGithubPath(String version, bool includePrelease = false);
@@ -55,6 +56,7 @@ private:
     releaseInfo _cache;
     BearSSL::WiFiClientSecure *_client = nullptr;
     UpdateProgressHandler _update; 
+    bool _restartOnUpdate = true;
 };
 
 

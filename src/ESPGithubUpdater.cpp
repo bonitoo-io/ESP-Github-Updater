@@ -111,7 +111,7 @@ bool ESPGithubUpdater::fetchVersion(String version, bool includePrelease) {
 
 String ESPGithubUpdater::buildGithubPath(String version, bool includePrelease) {
     String path;
-    // reserve maximum possible length
+    // reserve maximum possible length 
     int length = strlen(GithubRepoPath) + _owner.length()+_repoName.length() + version.length() + strlen(GithubLastRelease) +1;
     char *buff = new char[length];
     sprintf(buff, GithubRepoPath, _owner.c_str(), _repoName.c_str());
@@ -149,8 +149,11 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             handler((int)prog);
         });
     }
-    #if 0
-    t_httpUpdate_return ret = ESPhttpUpdate.update(_client, url);
+    
+    ESPhttpUpdate.followRedirects(true);
+    ESPhttpUpdate.closeConnectionsOnUpdate(false);
+    ESPhttpUpdate.rebootOnUpdate(_restartOnUpdate);
+    t_httpUpdate_return ret = ESPhttpUpdate.update(*_client, _cache.assetUrl);
     switch (ret) {
         case HTTP_UPDATE_FAILED:
             _lastError = ESPhttpUpdate.getLastErrorString();
@@ -164,15 +167,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             _lastError = F("HTTP_UPDATE_OK");
             return true;
     }
-    #else
-    for(int i=0;i<=100;i+=10) {
-        if(handler) {
-           handler((float)i);
-           delay(200);
-        };
-    }
-    return true;
-    #endif
+    return false;
 }
 
 bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler) {
