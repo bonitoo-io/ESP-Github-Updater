@@ -4,11 +4,37 @@
 #include <ESP8266httpUpdate.h>
 
 
-static const char *GithubAPI = "api.github.com"; 
-static const char *GithubRepoPath = "/repos/%s/%s/releases"; 
-static const char *GithubTag = "/tags/%s";
-static const char *GithubLastRelease = "?per_page=1&page=1";
-static const char *GithubLatestRelease = "/latest";
+const char *DigiCertHighAssuranceEVRootCA PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSswKQYDVQQDEyJEaWdpQ2VydCBIaWdoIEFzc3VyYW5j
+ZSBFViBSb290IENBMB4XDTA2MTExMDAwMDAwMFoXDTMxMTExMDAwMDAwMFowbDEL
+MAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3
+LmRpZ2ljZXJ0LmNvbTErMCkGA1UEAxMiRGlnaUNlcnQgSGlnaCBBc3N1cmFuY2Ug
+RVYgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbM5XPm
++9S75S0tMqbf5YE/yc0lSbZxKsPVlDRnogocsF9ppkCxxLeyj9CYpKlBWTrT3JTW
+PNt0OKRKzE0lgvdKpVMSOO7zSW1xkX5jtqumX8OkhPhPYlG++MXs2ziS4wblCJEM
+xChBVfvLWokVfnHoNb9Ncgk9vjo4UFt3MRuNs8ckRZqnrG0AFFoEt7oT61EKmEFB
+Ik5lYYeBQVCmeVyJ3hlKV9Uu5l0cUyx+mM0aBhakaHPQNAQTXKFx01p8VdteZOE3
+hzBWBOURtCmAEvF5OYiiAhF8J2a3iLd48soKqDirCmTCv2ZdlYTBoSUeh10aUAsg
+EsxBu24LUTi4S8sCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQF
+MAMBAf8wHQYDVR0OBBYEFLE+w2kD+L9HAdSYJhoIAu9jZCvDMB8GA1UdIwQYMBaA
+FLE+w2kD+L9HAdSYJhoIAu9jZCvDMA0GCSqGSIb3DQEBBQUAA4IBAQAcGgaX3Nec
+nzyIZgYIVyHbIUf4KmeqvxgydkAQV8GK83rZEWWONfqe/EW1ntlMMUu4kehDLI6z
+eM7b41N5cdblIZQB2lWHmiRk9opmzN6cN82oNLFpmyPInngiK3BD41VHMWEZ71jF
+hS9OMPagMRYjyOfiZRYzy78aG6A9+MpeizGLYAiJLQwGXFK3xPkKmNEVX58Svnw2
+Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe
+vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
++OkuE6N36B9K
+-----END CERTIFICATE-----
+)EOF";
+
+static const char *GithubAPI PROGMEM = "api.github.com"; 
+static const char *GithubRepoPath PROGMEM = "/repos/%s/%s/releases"; 
+static const char *GithubTag PROGMEM = "/tags/%s";
+static const char *GithubLastRelease PROGMEM = "?per_page=1&page=1";
+static const char *GithubLatestRelease PROGMEM = "/latest";
 
 
 
@@ -79,6 +105,11 @@ ESPGithubUpdater::ESPGithubUpdater(String owner, String repoName, String user, S
      
 }
 
+ ESPGithubUpdater::~ESPGithubUpdater() { 
+     delete _cert;
+     delete _client; 
+}
+
 String ESPGithubUpdater::getLatestVersion(bool includePrerelease) {
     if (fetchVersion("", includePrerelease)) {
         return _cache.version;
@@ -112,16 +143,16 @@ bool ESPGithubUpdater::fetchVersion(String version, bool includePrelease) {
 String ESPGithubUpdater::buildGithubPath(String version, bool includePrelease) {
     String path;
     // reserve maximum possible length 
-    int length = strlen(GithubRepoPath) + _owner.length()+_repoName.length() + version.length() + strlen(GithubLastRelease) +1;
+    int length = strlen_P(GithubRepoPath) + _owner.length()+_repoName.length() + version.length() + strlen_P(GithubLastRelease) +1;
     char *buff = new char[length];
-    sprintf(buff, GithubRepoPath, _owner.c_str(), _repoName.c_str());
+    sprintf_P(buff, GithubRepoPath, _owner.c_str(), _repoName.c_str());
     if(version.length() > 0) {
-         sprintf(buff+strlen(buff), GithubTag, version.c_str());
+         sprintf_P(buff+strlen(buff), GithubTag, version.c_str());
     } else {
         if(includePrelease) {
-            sprintf(buff+strlen(buff),GithubLastRelease);
+            sprintf_P(buff+strlen(buff),GithubLastRelease);
         } else {
-            sprintf(buff+strlen(buff),GithubLatestRelease);
+            sprintf_P(buff+strlen(buff),GithubLatestRelease);
         }
     }
     path = buff;
@@ -179,12 +210,15 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
             _client->setBufferSizes(1024, 1024);
             //Serial.println(F("MFLN ok"));
         }
-        _client->setInsecure();
+        if(!_cert) {
+            _cert = new BearSSL::X509List(DigiCertHighAssuranceEVRootCA); 
+        }
+        _client->setTrustAnchors(_cert);
     }
     HTTPClient httpClient;
     _lastError = "";
     String url = F("https://");
-    url += GithubAPI;
+    url += FPSTR(GithubAPI);
     url += path;
     //Serial.printf_P(PSTR("githubAPICall %s\n"), url.c_str());
     if(!httpClient.begin(*_client, url)) {

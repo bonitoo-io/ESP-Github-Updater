@@ -37,7 +37,7 @@ class ESPGithubUpdater {
 public:
     ESPGithubUpdater(String owner, String repoName);
     ESPGithubUpdater(String owner, String repoName, String user, String token);
-    virtual ~ESPGithubUpdater() { delete _client; }
+    virtual ~ESPGithubUpdater();
     String getLatestVersion(bool includePrerelease = false);
     bool checkVersion(String version);
     bool runUpdate(String version, UpdateProgressHandler handler = nullptr);
@@ -55,7 +55,8 @@ private:
     String _lastError;
     releaseInfo _cache;
     BearSSL::WiFiClientSecure *_client = nullptr;
-    UpdateProgressHandler _update; 
+    BearSSL::X509List  *_cert = nullptr;
+    UpdateProgressHandler _update = nullptr; 
     bool _restartOnUpdate = true;
 };
 
