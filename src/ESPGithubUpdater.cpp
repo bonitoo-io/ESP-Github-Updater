@@ -1,7 +1,7 @@
 #include "ESPGIthubUpdater.h"
 #include "HTTPJsonParser.h"
 #include <JsonStreamingParser.h>
-#include <ESP8266httpUpdate.h>
+#include "ESP8266httpUpdate.h"
 
 
 const char *DigiCertHighAssuranceEVRootCA PROGMEM = R"EOF(
@@ -270,6 +270,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
         Serial.println(F("MFLN ok"));
     }
     client.setTrustAnchors(_cert);
+#if 0    
     // if(_user.length() && _token.length()) {
     //     ESPhttpUpdate.setAuthorization(_user.c_str(),_token.c_str());
     // }
@@ -296,7 +297,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
         Serial.printf("Read: %d\n", r);
     }
     httpClient.end();
-#if 0    
+#else    
     if(handler) {
         ESPhttpUpdate.onProgress([handler](size_t act, size_t total) {
             float prog = act;
@@ -304,6 +305,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             handler((int)prog);
         });
     }
+    ESPhttpUpdate.closeConnectionsOnUpdate(false);
     t_httpUpdate_return ret = ESPhttpUpdate.update(client, binUrl);
     switch (ret) {
         case HTTP_UPDATE_FAILED:
@@ -319,7 +321,6 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             return true;
     }
 #endif
-
     return false;
 }
 
