@@ -1,7 +1,7 @@
 #include "ESPGIthubUpdater.h"
 #include "HTTPJsonParser.h"
 #include <JsonStreamingParser.h>
-#include <ESP8266httpUpdate.h>
+#include "ESP8266httpUpdate.h"
 
 
 const char *DigiCertHighAssuranceEVRootCA PROGMEM = R"EOF(
@@ -40,11 +40,20 @@ static const char *GithubLatestRelease PROGMEM = "/latest";
 
 class ReleaseParser: public JsonListener {
 private:
+    enum parserState {
+        release = 0,
+        assets,
+        assetBinFile,
+        assetMD5File
+    };
     String _key;
-    bool _inAssests = false;
+    parserState _state;
+    bool _skipAsset = false;
     releaseInfo *_release = nullptr;
+    const char *_binFileName;
+    const char *_md5FileName;
 public:
-    ReleaseParser() {}
+    ReleaseParser(const char *binFileName, const char *md5FileName):_state(parserState::release),_binFileName(binFileName),_md5FileName(md5FileName) {}
     ~ReleaseParser() { delete _release; }
     virtual void whitespace(char c) override {};
     virtual void startDocument() override {};
@@ -60,7 +69,7 @@ public:
 };
 
 void ReleaseParser::startObject() {
-    if(!_inAssests) {
+    if(_state == parserState::release) {
         if(!_release) {
             _release = new releaseInfo; 
         }
@@ -68,46 +77,95 @@ void ReleaseParser::startObject() {
 }
 
 void ReleaseParser::key(String key) {
-    if(!_inAssests && key == F("assets")) {
-        _inAssests = true;
+    if(_state == parserState::release && key == F("assets")) {
+        _state = parserState::assets;
     }
     _key = key;
 };
 
 void ReleaseParser:: endArray() {
-    if(_inAssests) {
-        _inAssests  = false;
+    if(_state != parserState::release) {
+        _state = parserState::release;
     }
+}
+
+bool fileNameMatches(const char *tmplt, const char *file) {
+    Serial.printf("match: %s vs %s\n", tmplt, file);
+    char *p = strstr_P(tmplt, PSTR("%version%"));
+    bool match = false;
+    if(p) {
+        //ws-firmare-
+        int pos = p-tmplt;
+        int len = pos+1;
+        char *preffix = new char[len];
+        strncpy(preffix, tmplt,  len-1);
+        preffix[len-1] = 0;
+        Serial.printf("   preffix: %s,%d\n", preffix, len);
+        if(strstr(file, preffix)) {
+            len = strlen(tmplt)-pos-9+1;//9-strlen("%version%")
+            if(len>0) {
+                char *suffix = new char[len];
+                strncpy(suffix, tmplt+pos+9,  len-1);
+                suffix[len-1] = 0;
+                Serial.printf("   suffix: %s,%d\n", suffix, len);
+                if(strstr(file, suffix)) {
+                    match = true;
+                }
+                delete [] suffix;
+            } else {
+                match = true;
+            }
+        }
+        delete [] preffix;
+    } else {
+        match = strcmp(tmplt, file) == 0;
+    }
+    Serial.printf("  result: %s\n", match?"true":"false");
+    return match;
 }
 
 void ReleaseParser::value(String value) {
     //Serial.println("key: " + _key + " value: " + value);
-    if(!_inAssests) {
+    if(_state == parserState::release) {
         if ( _key == F("name")) {
             _release->version = value;
         } else if ( _key == F("tag_name")) {
-            _release->version = value;
+            _release->tag = value;
         }
     } else {
+        if ( _key == F("name")) {
+            if(fileNameMatches(_binFileName, value.c_str())) {
+                _state = parserState::assetBinFile;
+            } else if(_md5FileName && fileNameMatches(_md5FileName, value.c_str())) {
+                _state = parserState::assetMD5File;
+            } else {
+                _state = parserState::assets;
+            }
+        }
         if ( _key == F("browser_download_url")) {
-            _release->assetUrl = value;
-        } else if(_key == F("content_type")) {
-            _release->assetIsBin = value == F("application/octet-stream");
+            if(_state == parserState::assetBinFile) {
+                _release->binFileURL = value;
+            } else if(_state == parserState::assetMD5File) {
+                _release->md5FileURL = value;
+            }
         } 
     }
 }
 
-ESPGithubUpdater::ESPGithubUpdater(String owner, String repoName):ESPGithubUpdater(owner, repoName, "", "") {
-
-}
-ESPGithubUpdater::ESPGithubUpdater(String owner, String repoName, String user, String token):
-    _owner(owner), _repoName(repoName), _user(user),_token(token) {
+ESPGithubUpdater::ESPGithubUpdater(String owner, String repoName, String fileName):
+    _owner(owner), _repoName(repoName), _fileName(fileName) {
      
 }
+
 
  ESPGithubUpdater::~ESPGithubUpdater() { 
      delete _cert;
      delete _client; 
+}
+
+void ESPGithubUpdater::setAuthorization(String user, String token) {
+    _user = user;
+    _token = token;
 }
 
 String ESPGithubUpdater::getLatestVersion(bool includePrerelease) {
@@ -128,7 +186,7 @@ bool ESPGithubUpdater::fetchVersion(String version, bool includePrelease) {
     }
     String path = buildGithubPath(version, includePrelease);
     return githubAPICall(path, [this](HTTPClient &client){
-        ReleaseParser rel;
+        ReleaseParser rel(_fileName.c_str(), _md5File.length()?_md5File.c_str():nullptr);
         HTTPJsonParser parser(&rel);
         client.writeToStream(&parser);
         if(rel.getRelease()) {
@@ -164,11 +222,27 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     if(!fetchVersion(version)) {
         return false;
     }
-    //Serial.printf_P(PSTR("Update %s, bin: %s\n"), _cache.assetUrl.c_str(),_cache.assetIsBin?F("true"):F("false"));
-    if(!_cache.assetIsBin) {
-        _lastError = F("Not a binary asset: ");
-        _lastError += _cache.assetUrl.c_str();
+    Serial.printf_P(PSTR("Update %s, MD5file: %s\n"), _cache.binFileURL.c_str(),_cache.md5FileURL.c_str());
+    if(!_cache.binFileURL.length()) {
+        Serial.println(F(" Bin file not found"));
+        _lastError = F("MD5 file not found: ") + _fileName;
         return false;
+    }
+    if(_md5File.length()) {
+        if(_cache.md5FileURL.length()) {
+            String md5;
+            int code = getMD5Sum( _cache.md5FileURL, md5);
+            if(!code) {
+                Serial.printf_P(PSTR("  MD5: %s\n"), md5.c_str());
+                ESPhttpUpdate.setMD5sum(md5);
+            } else {
+                return false;
+            }
+        } else {
+            Serial.println(F(" MD5 file not found"));
+            _lastError = F("MD5 file not found: ") + _md5File;
+            return false;
+        }
     }
       
     if(_user.length() && _token.length()) {
@@ -185,7 +259,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     ESPhttpUpdate.closeConnectionsOnUpdate(false);
     ESPhttpUpdate.rebootOnUpdate(_restartOnUpdate);
-    t_httpUpdate_return ret = ESPhttpUpdate.update(*_client, _cache.assetUrl);
+    t_httpUpdate_return ret = ESPhttpUpdate.update(*_client, _cache.binFileURL);
     switch (ret) {
         case HTTP_UPDATE_FAILED:
             _lastError = ESPhttpUpdate.getLastErrorString();
@@ -227,7 +301,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
         return false;
     }
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    httpClient.setUserAgent(F("ESP Github Updater 0.1"));
+    httpClient.setUserAgent(F("ESP Github Updater 1.0.0"));
     httpClient.addHeader(F("Accept"),F("application/vnd.github.v3+json"));
     if(_user.length() && _token.length()) {
         httpClient.setAuthorization(_user.c_str(),_token.c_str());
@@ -251,3 +325,34 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
     httpClient.end();
     return res;
 }
+
+int ESPGithubUpdater::getMD5Sum(const String &url, String &md5) {
+  HTTPClient httpClient;
+  Serial.printf_P(PSTR("Download: %s\n"), url.c_str());
+  httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  httpClient.begin(*_client, url);
+  int code = httpClient.GET();
+  int errorCode = 0;
+  String ret;
+  if(code == 200) {
+    uint32_t size = httpClient.getSize();
+    Serial.printf("   Size: %d\n", size);
+    if(size >32 && size<200) {
+        errorCode = 0;
+        md5 = httpClient.getString().substring(0,32);
+    } else {
+        _lastError = F("Ivalid MD5 file length: ") +String(size);
+        errorCode = -1;
+    }
+  } else {
+    errorCode = code;
+    if (code < 0) {
+        _lastError = HTTPClient::errorToString(code); 
+    } else {
+        _lastError = httpClient.getString();
+    }
+  }
+  httpClient.end();
+  return errorCode;
+}
+

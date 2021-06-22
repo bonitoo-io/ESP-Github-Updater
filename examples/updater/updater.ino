@@ -1,10 +1,8 @@
 #include <ESP8266WiFi.h>
 #include "ESPGithubUpdater.h"
 
-ESPGithubUpdater updater("<owner>","<repo>");
-// Github has anonymous rate limit 60/hours
-// In order to access private repos or use higher limit, 1500/hour, user authenticated request 
-//ESPGithubUpdater updater("<owner>","<repo>","<username>","<token>");
+// If update file has version in the name, use %version% variable in the file name. e.g. ws-firmware-%version%.bin
+ESPGithubUpdater updater("<owner>","<repo>", "<update-file-name>");
 
 void setup() {
   Serial.begin(74880);
@@ -23,6 +21,13 @@ void setup() {
     delay(3000);  
     ESP.restart();
   }
+  // Github has anonymous rate limit 60/hours
+  // In order to access private repos or use higher limit, 1500/hour, user authenticated request 
+  updater.setAuthorization("<username>","<token>");
+  // Set MD5 sum file name to verify MD5 sum. 
+  // If MD5 sum file has version in the name, use %version% variable in the file name. e.g. ws-firmware-%version%.md5
+  updater.setMD5FileName("<update-md5-file-name>");
+
   Serial.println();
   Serial.print("version 0.1: ");
   Serial.println(updater.checkVersion("0.1"));
@@ -35,7 +40,7 @@ void setup() {
   } else {
     Serial.println(ver);
     updater.runUpdate(ver, [ver](int progress) {
-      Serial.printf("Updating to %s: %d%\n",ver.c_str(), progress);
+      Serial.printf("Updating to %s: %d\%\n",ver.c_str(), progress);
     });
   }
 }
