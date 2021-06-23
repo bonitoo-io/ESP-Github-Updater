@@ -90,24 +90,23 @@ void ReleaseParser:: endArray() {
 }
 
 bool fileNameMatches(const char *tmplt, const char *file) {
-    Serial.printf("match: %s vs %s\n", tmplt, file);
+    //Serial.printf("match: %s vs %s\n", tmplt, file);
     char *p = strstr_P(tmplt, PSTR("%version%"));
     bool match = false;
     if(p) {
-        //ws-firmare-
         int pos = p-tmplt;
         int len = pos+1;
         char *preffix = new char[len];
         strncpy(preffix, tmplt,  len-1);
         preffix[len-1] = 0;
-        Serial.printf("   preffix: %s,%d\n", preffix, len);
+        //Serial.printf("   preffix: %s,%d\n", preffix, len);
         if(strstr(file, preffix)) {
             len = strlen(tmplt)-pos-9+1;//9-strlen("%version%")
             if(len>0) {
                 char *suffix = new char[len];
                 strncpy(suffix, tmplt+pos+9,  len-1);
                 suffix[len-1] = 0;
-                Serial.printf("   suffix: %s,%d\n", suffix, len);
+                //Serial.printf("   suffix: %s,%d\n", suffix, len);
                 if(strstr(file, suffix)) {
                     match = true;
                 }
@@ -120,7 +119,7 @@ bool fileNameMatches(const char *tmplt, const char *file) {
     } else {
         match = strcmp(tmplt, file) == 0;
     }
-    Serial.printf("  result: %s\n", match?"true":"false");
+    //Serial.printf("  result: %s\n", match?"true":"false");
     return match;
 }
 
@@ -222,9 +221,9 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     if(!fetchVersion(version)) {
         return false;
     }
-    Serial.printf_P(PSTR("Update %s, MD5file: %s\n"), _cache.binFileURL.c_str(),_cache.md5FileURL.c_str());
+    //Serial.printf_P(PSTR("Update %s, MD5file: %s\n"), _cache.binFileURL.c_str(),_cache.md5FileURL.c_str());
     if(!_cache.binFileURL.length()) {
-        Serial.println(F(" Bin file not found"));
+        //Serial.println(F(" Bin file not found"));
         _lastError = F("MD5 file not found: ") + _fileName;
         return false;
     }
@@ -233,13 +232,13 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             String md5;
             int code = getMD5Sum( _cache.md5FileURL, md5);
             if(!code) {
-                Serial.printf_P(PSTR("  MD5: %s\n"), md5.c_str());
+                //Serial.printf_P(PSTR("  MD5: %s\n"), md5.c_str());
                 ESPhttpUpdate.setMD5sum(md5);
             } else {
                 return false;
             }
         } else {
-            Serial.println(F(" MD5 file not found"));
+            //Serial.println(F(" MD5 file not found"));
             _lastError = F("MD5 file not found: ") + _md5File;
             return false;
         }
@@ -297,7 +296,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
     //Serial.printf_P(PSTR("githubAPICall %s\n"), url.c_str());
     if(!httpClient.begin(*_client, url)) {
         _lastError = F("Begin failed");
-        Serial.println(F("begin failed"));
+        //Serial.println(F("begin failed"));
         return false;
     }
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
@@ -328,7 +327,7 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
 
 int ESPGithubUpdater::getMD5Sum(const String &url, String &md5) {
   HTTPClient httpClient;
-  Serial.printf_P(PSTR("Download: %s\n"), url.c_str());
+  //Serial.printf_P(PSTR("Download: %s\n"), url.c_str());
   httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   httpClient.begin(*_client, url);
   int code = httpClient.GET();
@@ -336,7 +335,7 @@ int ESPGithubUpdater::getMD5Sum(const String &url, String &md5) {
   String ret;
   if(code == 200) {
     uint32_t size = httpClient.getSize();
-    Serial.printf("   Size: %d\n", size);
+    //Serial.printf("   Size: %d\n", size);
     if(size >32 && size<200) {
         errorCode = 0;
         md5 = httpClient.getString().substring(0,32);
