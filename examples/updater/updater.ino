@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <TZ.h>
 #include "ESPGithubUpdater.h"
 
 // If update file has version in the name, use %version% variable in the file name. e.g. ws-firmware-%version%.bin
@@ -21,12 +22,23 @@ void setup() {
     delay(3000);  
     ESP.restart();
   }
+  // Select custom TZ string in https://github.com/esp8266/Arduino/blob/master/cores/esp8266/TZ.h
+  // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+  configTzTime(TZ_Europe_Prague	, "0.cz.pool.ntp.org", "1.cz.pool.ntp.org", "2.cz.pool.ntp.org");
+  Serial.print("Waiting till time is synced ");
+  i = 0;
+  while (time(nullptr) < 1000000000ul && i < 30) {
+      Serial.print(".");
+      delay(300);
+      i++;
+  }
+  Serial.println();
   // Github has anonymous rate limit 60/hours
   // In order to access private repos or use higher limit, 1500/hour, user authenticated request 
-  updater.setAuthorization("<username>","<token>");
+  //updater.setAuthorization("<username>","<token>");
   // Set MD5 sum file name to verify MD5 sum. 
   // If MD5 sum file has version in the name, use %version% variable in the file name. e.g. ws-firmware-%version%.md5
-  updater.setMD5FileName("<update-md5-file-name>");
+  //updater.setMD5FileName("<update-md5-file-name>");
 
   Serial.println();
   Serial.print("version 0.1: ");
