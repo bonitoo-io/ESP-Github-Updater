@@ -1,4 +1,4 @@
-#include "ESPGIthubUpdater.h"
+#include "ESPGithubUpdater.h"
 #include "HTTPJsonParser.h"
 #include <JsonStreamingParser.h>
 #include "ESP8266httpUpdate.h"
