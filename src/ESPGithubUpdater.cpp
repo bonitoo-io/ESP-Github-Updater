@@ -224,7 +224,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     //Serial.printf_P(PSTR("Update %s, MD5file: %s\n"), _cache.binFileURL.c_str(),_cache.md5FileURL.c_str());
     if(!_cache.binFileURL.length()) {
         //Serial.println(F(" Bin file not found"));
-        _lastError = F("MD5 file not found: ") + _fileName;
+        _lastError = F("Bin file not found: ") + _fileName;
         return false;
     }
     if(_md5File.length()) {
