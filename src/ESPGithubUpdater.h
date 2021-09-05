@@ -40,6 +40,7 @@ class ESPGithubUpdater {
   void setMD5FileName(String md5FileName) { _md5File = md5FileName; }
   String getLatestVersion(bool includePrerelease = false);
   bool checkVersion(String version);
+  void setInsecure() { _insecure = true; }
   bool runUpdate(String version, UpdateProgressHandler handler = nullptr);
   String getLastError() const { return _lastError; }
   void setRestartOnUpdate(bool restart) { _restartOnUpdate = restart; }
@@ -56,6 +57,7 @@ private:
   String _token;
   String _md5File;
   String _lastError;
+  bool _insecure = false;
   releaseInfo _cache;
   BearSSL::WiFiClientSecure *_client = nullptr;
   BearSSL::X509List  *_cert = nullptr;

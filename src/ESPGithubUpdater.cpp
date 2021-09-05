@@ -283,10 +283,14 @@ bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler
             _client->setBufferSizes(1024, 1024);
             //Serial.println(F("MFLN ok"));
         }
-        if(!_cert) {
-            _cert = new BearSSL::X509List(DigiCertHighAssuranceEVRootCA); 
+        if(_insecure) {
+            _client->setInsecure();
+        } else {
+            if(!_cert) {
+                _cert = new BearSSL::X509List(DigiCertHighAssuranceEVRootCA); 
+            }
+            _client->setTrustAnchors(_cert);
         }
-        _client->setTrustAnchors(_cert);
     }
     HTTPClient httpClient;
     _lastError = "";
