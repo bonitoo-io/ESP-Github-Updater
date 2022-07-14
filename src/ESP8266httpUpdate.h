@@ -27,10 +27,17 @@
 #define ESP8266HTTPUPDATE_H_
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
-#include <ESP8266HTTPClient.h>
+
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266HTTPClient.h>
+#elif defined(ESP32)
+  #include <WiFi.h>
+  #include <HTTPClient.h>
+#endif
+
 
 #ifdef DEBUG_ESP_HTTP_UPDATE
 #ifdef DEBUG_ESP_PORT

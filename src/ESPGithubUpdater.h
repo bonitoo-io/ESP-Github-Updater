@@ -3,8 +3,13 @@
 
 
 #include <Arduino.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecureBearSSL.h>
+#if defined(ESP8266)
+  #include <ESP8266HTTPClient.h>
+  #include <WiFiClientSecureBearSSL.h>
+#elif defined(ESP32)
+  #include <HTTPClient.h>
+#endif
+
 #include <functional>
 
 class releaseInfo {
