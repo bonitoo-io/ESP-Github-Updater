@@ -43,7 +43,7 @@ public:
         }
         return len;
     } 
-
+#ifdef ESP8266
     virtual bool outputCanTimeout() override
     {
         return false;
@@ -53,6 +53,7 @@ public:
     {
         return false;
     } 
+#endif    
 };
 
 #endif //HTTP_JSON_PARSER_H

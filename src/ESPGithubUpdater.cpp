@@ -1,7 +1,13 @@
 #include "ESPGithubUpdater.h"
 #include "HTTPJsonParser.h"
 #include <JsonStreamingParser.h>
+
+#ifdef ESP8266
 #include "ESP8266httpUpdate.h"
+#elif defined(ESP32)
+#include "HTTPUpdate.h"
+#define ESPhttpUpdate httpUpdate
+#endif
 
 
 const char *DigiCertHighAssuranceEVRootCA PROGMEM = R"EOF(
@@ -157,7 +163,9 @@ ESPGithubUpdater::ESPGithubUpdater(String owner, String repoName, String fileNam
 
 
  ESPGithubUpdater::~ESPGithubUpdater() { 
+#ifdef ESP8266     
      delete _cert;
+#endif     
      delete _client; 
 }
 
@@ -223,7 +231,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     //Serial.printf_P(PSTR("Update %s, MD5file: %s\n"), _cache.binFileURL.c_str(),_cache.md5FileURL.c_str());
     if(!_cache.binFileURL.length()) {
         //Serial.println(F(" Bin file not found"));
-        _lastError = F("Bin file not found: ") + _fileName;
+        _lastError = String(F("Bin file not found: ")) + _fileName;
         return false;
     }
     if(_md5File.length()) {
@@ -238,14 +246,16 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
             }
         } else {
             //Serial.println(F(" MD5 file not found"));
-            _lastError = F("MD5 file not found: ") + _md5File;
+            _lastError = String(F("MD5 file not found: ")) + _md5File;
             return false;
         }
     }
-      
+#ifdef ESP8266      
     if(_user.length() && _token.length()) {
         ESPhttpUpdate.setAuthorization(_user.c_str(),_token.c_str());
     }
+    ESPhttpUpdate.closeConnectionsOnUpdate(false);
+#endif    
     if(handler) {
         ESPhttpUpdate.onProgress([handler](size_t act, size_t total) {
             float prog = act;
@@ -255,7 +265,7 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
     }
     
     ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    ESPhttpUpdate.closeConnectionsOnUpdate(false);
+    
     ESPhttpUpdate.rebootOnUpdate(_restartOnUpdate);
     t_httpUpdate_return ret = ESPhttpUpdate.update(*_client, _cache.binFileURL);
     switch (ret) {
@@ -276,19 +286,27 @@ bool ESPGithubUpdater::runUpdate(String version, UpdateProgressHandler handler) 
 
 bool ESPGithubUpdater::githubAPICall(String &path, GithubResponseHandler handler) {
     if(!_client) {
+#ifdef ESP8266        
         _client = new  BearSSL::WiFiClientSecure;
         bool mfln = _client->probeMaxFragmentLength(GithubAPI, 443, 1024);
         if (mfln) {
             _client->setBufferSizes(1024, 1024);
             //Serial.println(F("MFLN ok"));
         }
+#elif defined(ESP32)
+        _client =  new WiFiClientSecure;  
+#endif        
         if(_insecure) {
             _client->setInsecure();
         } else {
+#ifdef ESP8266                    
             if(!_cert) {
                 _cert = new BearSSL::X509List(DigiCertHighAssuranceEVRootCA); 
             }
             _client->setTrustAnchors(_cert);
+#elif defined(ESP32)
+            _client->setCACert(DigiCertHighAssuranceEVRootCA);
+#endif            
         }
     }
     HTTPClient httpClient;
@@ -343,7 +361,7 @@ int ESPGithubUpdater::getMD5Sum(const String &url, String &md5) {
         errorCode = 0;
         md5 = httpClient.getString().substring(0,32);
     } else {
-        _lastError = F("Ivalid MD5 file length: ") +String(size);
+        _lastError = String(F("Ivalid MD5 file length: ")) +String(size);
         errorCode = -1;
     }
   } else {

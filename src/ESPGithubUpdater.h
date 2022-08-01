@@ -64,8 +64,12 @@ private:
   String _lastError;
   bool _insecure = false;
   releaseInfo _cache;
+#ifdef ESP8266  
   BearSSL::WiFiClientSecure *_client = nullptr;
   BearSSL::X509List  *_cert = nullptr;
+#elif defined(ESP32)
+  WiFiClientSecure *_client = nullptr;
+#endif  
   UpdateProgressHandler _update = nullptr; 
   bool _restartOnUpdate = true;
 };
